@@ -46,7 +46,8 @@ create table if not exists practice_answers (
   session_id uuid not null references practice_sessions(id) on delete cascade,
   question_id uuid not null references interview_questions(id) on delete cascade,
   answer_text text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint practice_answers_session_question_unique unique (session_id, question_id)
 );
 
 -- Answer Scores: AI scoring for each answer
