@@ -33,6 +33,7 @@ export default function InterviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [completing, setCompleting] = useState(false);
+  const [humanizationWarning, setHumanizationWarning] = useState<string | undefined>();
 
   const loadData = useCallback(async () => {
     try {
@@ -130,7 +131,8 @@ export default function InterviewPage() {
         throw new Error(data.error || 'Scoring failed.');
       }
 
-      const { score } = await res.json();
+      const { score, humanization_warning } = await res.json();
+      setHumanizationWarning(humanization_warning);
 
       const updatedAnswer: AnswerWithScore = { ...answer, score };
       setAnswers((prev) => new Map(prev).set(currentQuestion.id, updatedAnswer));
@@ -303,7 +305,7 @@ export default function InterviewPage() {
 
       {/* Score display */}
       {isAnswered && showScore && currentAnswer.score && (
-        <ScoreCard score={currentAnswer.score} />
+        <ScoreCard score={currentAnswer.score} humanizationWarning={humanizationWarning} />
       )}
 
       {isAnswered && !showScore && currentAnswer.score && (

@@ -2,17 +2,26 @@
 
 ## Environment Variables
 
-Create a `.env.local` file in the project root:
+Create a `.env.local` file in the project root (see `.env.local.example`):
 
 ```env
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# OpenAI — question generation, answer scoring, prep sheet
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL_FAST=gpt-4o-mini        # or gpt-4o for higher accuracy
+
+# Anthropic — answer humanization only
 ANTHROPIC_API_KEY=your_anthropic_api_key
+ANTHROPIC_MODEL_HUMANIZER=claude-opus-4-5  # or claude-haiku-4-5-20251001 for speed
 ```
 
 ### Where to get these:
-- **Supabase URL + Anon Key**: Go to your Supabase project → Settings → API
-- **Anthropic API Key**: https://console.anthropic.com → API Keys
+- **Supabase URL + Anon Key**: Supabase project → Settings → API
+- **OpenAI API Key**: platform.openai.com → API Keys
+- **Anthropic API Key**: console.anthropic.com → API Keys
 
 ---
 
@@ -54,13 +63,24 @@ App runs at http://localhost:3000
 
 ---
 
+## AI Model Flow
+
+| Step | Model | Purpose |
+|------|-------|---------|
+| Question generation | GPT (`OPENAI_MODEL_FAST`) | Generates 20 personalized, ranked questions |
+| Answer scoring | GPT (`OPENAI_MODEL_FAST`) | Scores on 10 dimensions + qualitative feedback |
+| Answer humanization | Claude (`ANTHROPIC_MODEL_HUMANIZER`) | Rewrites the answer naturally — no new facts invented |
+| Prep sheet | GPT (`OPENAI_MODEL_FAST`) | Synthesizes session history into final prep sheet |
+
+If Claude humanization fails (e.g. missing API key), the GPT score is saved and shown — a yellow warning appears in the score card.
+
 ## How to Use
 
 1. **Go to /profile** — paste your resume, job description, optional notes
-2. **Questions generate automatically** — 20 ranked questions with categories
+2. **Questions generate automatically** — 20 GPT-generated questions ranked by likelihood
 3. **Click "Start Mock Interview"** — answer questions one at a time
-4. **Submit each answer** — AI scores it across 10 dimensions
-5. **See score card** — feedback, improved answer, likely follow-up
+4. **Submit each answer** — GPT scores it on 10 dimensions, then Claude humanizes the rewrite
+5. **See score card** — GPT feedback + Claude humanized version (labeled, with disclaimer)
 6. **Check /dashboard** — progress tracking, readiness by interview type
 7. **Generate /prep-sheet** — final prep sheet before your interview
 
@@ -69,18 +89,21 @@ App runs at http://localhost:3000
 ## Test Checklist
 
 - [ ] Create a practice profile with resume + JD
-- [ ] Verify 20 questions are generated and ranked
+- [ ] Verify 20 questions are generated and ranked (GPT)
 - [ ] Click into questions to see why_likely, what_tested, answer_structure
 - [ ] Start a mock interview session
 - [ ] Type and submit an answer
-- [ ] Verify AI scoring appears with all 10 dimensions
+- [ ] Verify GPT score appears with all 10 dimensions and "scored by GPT · model-name" label
+- [ ] Verify "Claude humanized version" section appears with model name and disclaimer
+- [ ] Verify humanization_notes are shown below the rewritten answer
 - [ ] Navigate to next question and submit another answer
 - [ ] Check navigation dots update with color-coded scores
 - [ ] Check /dashboard shows stats and category breakdown
 - [ ] Check /history shows sessions with answers
-- [ ] Generate a prep sheet — verify it includes reminders, weak areas, risky questions
-- [ ] Test error handling: try submitting empty answer (should be disabled)
-- [ ] Test with ANTHROPIC_API_KEY missing — verify error message
+- [ ] Generate a prep sheet — verify it includes reminders, weak areas, risky questions (GPT)
+- [ ] Test empty answer (submit button disabled)
+- [ ] Test with OPENAI_API_KEY missing — verify error message
+- [ ] Test with ANTHROPIC_API_KEY missing — verify GPT score still saves, yellow warning shown
 
 ---
 

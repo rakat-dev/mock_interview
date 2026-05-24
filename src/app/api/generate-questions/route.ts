@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generateInterviewQuestions } from '@/lib/ai/anthropic';
+import { generateInterviewQuestions } from '@/lib/ai/openai';
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // Fetch the profile
     const { data: profile, error: profileError } = await supabase
       .from('practice_profiles')
       .select('*')
@@ -48,14 +47,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Generate questions via AI
+    // Generate questions via GPT
     const questions = await generateInterviewQuestions(
       profile.resume_text,
       profile.job_description,
       profile.company_notes ?? undefined
     );
 
-    // Insert into DB
     const rows = questions.map((q) => ({
       profile_id,
       rank: q.rank,

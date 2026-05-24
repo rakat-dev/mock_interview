@@ -1,6 +1,7 @@
+// Prep sheet uses GPT for analysis — same model as scoring, sufficient for structured summaries.
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { generatePrepSheet } from '@/lib/ai/anthropic';
+import { generatePrepSheet } from '@/lib/ai/openai';
 import { normalizeScore } from '@/lib/supabase/normalize';
 
 export async function POST(req: NextRequest) {
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    // Build a summary string
+    // Build a summary string for GPT
     const summary = (sessions ?? []).map((session) => {
       const answers = (session.answers ?? []).map((a: { question?: { question_text?: string; category?: string }; answer_text?: string; score?: unknown }) => {
         const q = a.question;
@@ -55,7 +56,6 @@ export async function POST(req: NextRequest) {
       .eq('profile_id', profile_id)
       .order('rank');
 
-    // Get best answers per question
     const { data: topAnswers } = await supabase
       .from('practice_answers')
       .select(`
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       summary || 'No practice sessions completed yet.'
     );
 
-    // Build top questions from existing data
+    // Build top questions from existing data, preferring highest-scored answer per question
     const questionMap = new Map<string, { question: unknown; best_answer: string; score: number }>();
     for (const answer of (topAnswers ?? []) as Array<{ question_id?: string; question?: { rank?: number }; answer_text?: string; score?: unknown }>) {
       const qid = answer.question_id;

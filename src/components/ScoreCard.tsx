@@ -5,6 +5,7 @@ import { Card } from './ui/Card';
 
 interface ScoreCardProps {
   score: AnswerScore;
+  humanizationWarning?: string;
 }
 
 const scoreFields = [
@@ -40,14 +41,26 @@ function ScoreBar({ value }: { value: number }) {
   );
 }
 
-export function ScoreCard({ score }: ScoreCardProps) {
+export function ScoreCard({ score, humanizationWarning }: ScoreCardProps) {
+  // Prefer Claude humanized version; fall back to legacy improved_answer for old rows
+  const rewrittenAnswer = score.humanized_answer ?? score.improved_answer ?? null;
+  const isHumanized = !!score.humanized_answer;
+
   return (
     <div className="space-y-6">
-      {/* Overall score */}
+      {/* Overall score — scored by GPT */}
       <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
         <div>
-          <p className="text-sm text-gray-500">Overall Score</p>
-          <p className="text-4xl font-bold text-gray-900">{score.overall_score.toFixed(1)}<span className="text-xl text-gray-400">/10</span></p>
+          <p className="text-sm text-gray-500">
+            Overall Score
+            {score.gpt_model && (
+              <span className="ml-2 text-xs text-gray-400">scored by GPT · {score.gpt_model}</span>
+            )}
+          </p>
+          <p className="text-4xl font-bold text-gray-900">
+            {score.overall_score.toFixed(1)}
+            <span className="text-xl text-gray-400">/10</span>
+          </p>
         </div>
         <div className={`w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-lg ${
           score.overall_score >= 8 ? 'bg-green-500' :
@@ -73,7 +86,7 @@ export function ScoreCard({ score }: ScoreCardProps) {
         ))}
       </div>
 
-      {/* Qualitative feedback */}
+      {/* GPT qualitative feedback */}
       <div className="space-y-4">
         <Card padding="sm" className="border-green-200 bg-green-50">
           <p className="text-sm font-semibold text-green-800 mb-1">What worked</p>
@@ -90,10 +103,37 @@ export function ScoreCard({ score }: ScoreCardProps) {
           <p className="text-sm text-blue-700 whitespace-pre-wrap">{score.improvement_suggestions}</p>
         </Card>
 
-        <Card padding="sm" className="border-indigo-200 bg-indigo-50">
-          <p className="text-sm font-semibold text-indigo-800 mb-1">Improved version</p>
-          <p className="text-sm text-indigo-700 italic whitespace-pre-wrap">&ldquo;{score.improved_answer}&rdquo;</p>
-        </Card>
+        {/* Claude humanized version */}
+        {rewrittenAnswer && (
+          <Card padding="sm" className="border-violet-200 bg-violet-50">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-sm font-semibold text-violet-800">
+                {isHumanized ? 'Claude humanized version' : 'Improved version'}
+              </p>
+              {score.claude_model && (
+                <span className="text-xs text-violet-400">{score.claude_model}</span>
+              )}
+            </div>
+            <p className="text-sm text-violet-700 italic whitespace-pre-wrap">
+              &ldquo;{rewrittenAnswer}&rdquo;
+            </p>
+            {isHumanized && score.humanization_notes && (
+              <p className="text-xs text-violet-500 mt-2 not-italic">
+                {score.humanization_notes}
+              </p>
+            )}
+            <p className="text-xs text-violet-400 mt-2 not-italic">
+              Verify all facts before memorizing — Claude only rewrites tone and flow using your original answer.
+            </p>
+          </Card>
+        )}
+
+        {/* Humanization failed warning */}
+        {humanizationWarning && (
+          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-700">
+            Claude humanization unavailable: {humanizationWarning}
+          </div>
+        )}
 
         <Card padding="sm" className="border-gray-200 bg-gray-50">
           <p className="text-sm font-semibold text-gray-700 mb-1">Likely follow-up question</p>

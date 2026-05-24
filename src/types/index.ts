@@ -50,6 +50,7 @@ export interface PracticeAnswer {
 export interface AnswerScore {
   id: string;
   answer_id: string;
+  // GPT numeric scores
   star_alignment: number;
   clarity: number;
   tone: number;
@@ -61,12 +62,27 @@ export interface AnswerScore {
   business_impact: number;
   ai_robotic_phrasing: number;
   overall_score: number;
+  // GPT qualitative feedback
   what_was_good: string;
   what_was_weak: string;
   improvement_suggestions: string;
-  improved_answer: string;
   likely_followup: string;
+  // Legacy field — kept for backwards compat with rows scored before dual-model flow
+  improved_answer: string | null;
+  // Dual-model provenance
+  gpt_model: string | null;
+  claude_model: string | null;
+  scoring_provider: string | null;
+  humanizer_provider: string | null;
+  // Claude humanization output
+  humanized_answer: string | null;
+  humanization_notes: string | null;
   created_at: string;
+}
+
+export interface HumanizeResponse {
+  humanized_answer: string;
+  humanization_notes: string;
 }
 
 export interface AnswerWithScore extends PracticeAnswer {
@@ -105,6 +121,7 @@ export interface GeneratedQuestion {
   answer_structure: string;
 }
 
+// Returned by GPT scoring — does not include improved_answer (Claude handles that)
 export interface ScoreResponse {
   star_alignment: number;
   clarity: number;
@@ -120,7 +137,6 @@ export interface ScoreResponse {
   what_was_good: string;
   what_was_weak: string;
   improvement_suggestions: string;
-  improved_answer: string;
   likely_followup: string;
 }
 

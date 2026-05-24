@@ -1,5 +1,7 @@
 import { QuestionCategory } from '@/types';
 
+// ── GPT: Question Generation ──────────────────────────────────────────────────
+
 export function buildQuestionGenerationPrompt(
   resumeText: string,
   jobDescription: string,
@@ -51,6 +53,10 @@ Category definitions:
 
 Rank 1 = most likely to be asked. Be ruthlessly realistic about what interviewers actually ask.`;
 }
+
+// ── GPT: Answer Scoring ───────────────────────────────────────────────────────
+// Returns numeric scores and qualitative feedback only.
+// Does NOT return an improved answer — that is handled by Claude humanization.
 
 export function buildScoringPrompt(
   question: string,
@@ -118,10 +124,67 @@ Return ONLY a valid JSON object (no markdown, no code blocks) with exactly this 
   "what_was_good": "2-4 specific things done well in this specific answer",
   "what_was_weak": "2-4 specific problems with this answer. Be honest. Don't sugarcoat.",
   "improvement_suggestions": "3-5 concrete, actionable suggestions. Quote the problematic parts where relevant.",
-  "improved_answer": "Rewrite this answer as it should have been said. IMPORTANT: Write it like a real senior software engineer talking — not a consultant, not a robot. Use contractions. Use normal vocabulary. It should sound like someone explaining this in a 1-on-1 conversation. Max 250 words.",
   "likely_followup": "One specific follow-up question an interviewer would ask after hearing this answer"
 }`;
 }
+
+// ── Claude: Answer Humanization ───────────────────────────────────────────────
+// Claude rewrites the answer to sound like a real senior engineer.
+// STRICT CONSTRAINT: Claude may only improve wording, flow, tone, and structure.
+// It must NOT invent new facts, metrics, tools, companies, or achievements.
+
+export function buildHumanizeAnswerPrompt(
+  question: string,
+  category: QuestionCategory,
+  originalAnswer: string,
+  gptFeedback: { what_was_weak: string; improvement_suggestions: string },
+  resumeText: string,
+  jobDescription: string
+): string {
+  return `You are editing a job interview answer. Your sole job is to make it sound more natural and human — like a senior software engineer talking in a real interview, not reading a prepared script.
+
+INTERVIEW QUESTION (Category: ${category.replace(/_/g, ' ')}):
+"${question}"
+
+ORIGINAL ANSWER:
+---
+${originalAnswer}
+---
+
+WHAT GPT SCORED AS WEAK IN THIS ANSWER:
+${gptFeedback.what_was_weak}
+
+GPT'S IMPROVEMENT SUGGESTIONS:
+${gptFeedback.improvement_suggestions}
+
+CANDIDATE RESUME (for factual context only):
+---
+${resumeText}
+---
+
+JOB DESCRIPTION (for alignment context only):
+---
+${jobDescription}
+---
+
+REWRITE RULES — READ CAREFULLY:
+1. You may ONLY use facts, numbers, technologies, companies, and achievements that appear in the original answer or resume. Do NOT invent or add anything new.
+2. Use contractions naturally (I've, we'd, didn't, wasn't).
+3. Write how someone actually talks in a 1-on-1 conversation, not how they'd write a LinkedIn post.
+4. Avoid corporate/consultant language: "leveraged", "synergies", "impactful", "spearheaded", "drove outcomes".
+5. Keep the answer under 250 words.
+6. Preserve the candidate's authentic voice — do not over-polish or make it sound too perfect.
+7. Address the specific weaknesses flagged by GPT, but only using existing facts.
+8. Do not make the answer sound rehearsed or AI-generated.
+
+Return ONLY a valid JSON object (no markdown, no code blocks):
+{
+  "humanized_answer": "The rewritten answer exactly as the candidate should say it",
+  "humanization_notes": "1-2 sentences describing what you changed and why — e.g. 'Removed corporate phrasing, added the missed outcome, tightened the story.'"
+}`;
+}
+
+// ── GPT: Prep Sheet ───────────────────────────────────────────────────────────
 
 export function buildPrepSheetPrompt(
   resumeText: string,
