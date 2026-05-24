@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeScore } from '@/lib/supabase/normalize';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CategoryBadge, ScoreBadge } from '@/components/ui/Badge';
@@ -67,13 +68,11 @@ export default function HistoryPage() {
           id: string;
           answer_text: string;
           question?: { question_text?: string; category?: QuestionCategory };
-          score?: { overall_score?: number } | Array<{ overall_score?: number }>;
+          score?: unknown;
         }>;
       }) => {
         const answers = (s.answers ?? []).map((a) => {
-          const scoreVal = Array.isArray(a.score)
-            ? a.score[0]?.overall_score
-            : (a.score as { overall_score?: number } | undefined)?.overall_score;
+          const scoreVal = normalizeScore(a.score as Parameters<typeof normalizeScore>[0])?.overall_score;
           return {
             id: a.id,
             answer_text: a.answer_text,

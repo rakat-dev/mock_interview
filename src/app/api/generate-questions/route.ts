@@ -24,16 +24,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Profile not found.' }, { status: 404 });
     }
 
-    // Check if questions already exist
-    const { data: existing } = await supabase
+    // Only delete questions that have no associated answers.
+    // Deleting questions with answers would cascade-null those answers and break
+    // historical session data — survivors are left in place alongside the new set.
+    const { data: existingQuestions } = await supabase
       .from('interview_questions')
       .select('id')
-      .eq('profile_id', profile_id)
-      .limit(1);
+      .eq('profile_id', profile_id);
 
-    if (existing && existing.length > 0) {
-      // Delete existing and regenerate
-      await supabase.from('interview_questions').delete().eq('profile_id', profile_id);
+    if (existingQuestions && existingQuestions.length > 0) {
+      const existingIds = existingQuestions.map((q: { id: string }) => q.id);
+
+      const { data: answeredIds } = await supabase
+        .from('practice_answers')
+        .select('question_id')
+        .in('question_id', existingIds);
+
+      const answeredSet = new Set((answeredIds ?? []).map((a: { question_id: string }) => a.question_id));
+      const safeToDelete = existingIds.filter((id: string) => !answeredSet.has(id));
+
+      if (safeToDelete.length > 0) {
+        await supabase.from('interview_questions').delete().in('id', safeToDelete);
+      }
     }
 
     // Generate questions via AI

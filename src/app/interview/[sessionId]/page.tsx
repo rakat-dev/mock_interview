@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeScore } from '@/lib/supabase/normalize';
 import {
   InterviewQuestion, PracticeSession, PracticeAnswer, AnswerScore,
 } from '@/types';
@@ -63,7 +64,7 @@ export default function InterviewPage() {
       for (const a of (answersData ?? [])) {
         answerMap.set(a.question_id, {
           ...a,
-          score: Array.isArray(a.score) ? a.score[0] : a.score,
+          score: normalizeScore(a.score),
         });
       }
       setAnswers(answerMap);
@@ -97,13 +98,18 @@ export default function InterviewPage() {
     try {
       const supabase = createClient();
 
+      // Upsert on (session_id, question_id) so re-answering a question
+      // replaces the old row rather than hitting the unique constraint.
       const { data: answer, error: answerError } = await supabase
         .from('practice_answers')
-        .insert({
-          session_id: sessionId,
-          question_id: currentQuestion.id,
-          answer_text: answerText.trim(),
-        })
+        .upsert(
+          {
+            session_id: sessionId,
+            question_id: currentQuestion.id,
+            answer_text: answerText.trim(),
+          },
+          { onConflict: 'session_id,question_id' }
+        )
         .select()
         .single();
 

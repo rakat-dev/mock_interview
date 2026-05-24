@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeScore } from '@/lib/supabase/normalize';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { CategoryBadge, ScoreBadge } from '@/components/ui/Badge';
@@ -95,11 +96,12 @@ export default function DashboardPage() {
       setTotalSessions(sessionsData?.length ?? 0);
       setTotalAnswers(answersData?.length ?? 0);
 
-      // Compute scores
-      const scored = (answersData ?? []).filter((a: { score?: { overall_score?: number } }) => a.score);
-      const overallScores = (scored.map((a: { score?: { overall_score?: number } }) =>
-        Array.isArray(a.score) ? a.score[0]?.overall_score : (a.score as { overall_score?: number })?.overall_score
-      ).filter((s: unknown) => s !== undefined)) as number[];
+      // Compute scores — use normalizeScore to handle both object and array forms
+      type RawAnswer = { score?: unknown; question?: { category?: string } };
+      const scored = (answersData ?? [] as RawAnswer[]).filter((a: RawAnswer) => normalizeScore(a.score as Parameters<typeof normalizeScore>[0]));
+      const overallScores = scored.map((a: RawAnswer) =>
+        normalizeScore(a.score as Parameters<typeof normalizeScore>[0])?.overall_score
+      ).filter((s): s is number => s !== undefined);
 
       if (overallScores.length > 0) {
         setAvgOverall(overallScores.reduce((a, b) => a + b, 0) / overallScores.length);
@@ -107,12 +109,10 @@ export default function DashboardPage() {
 
       // Category stats
       const catMap = new Map<string, number[]>();
-      for (const a of scored as Array<{ question?: { category?: string }; score?: { overall_score?: number } | Array<{ overall_score?: number }> }>) {
+      for (const a of scored as RawAnswer[]) {
         const cat = a.question?.category;
         if (!cat) continue;
-        const scoreVal = Array.isArray(a.score)
-          ? a.score[0]?.overall_score
-          : (a.score as { overall_score?: number })?.overall_score;
+        const scoreVal = normalizeScore(a.score as Parameters<typeof normalizeScore>[0])?.overall_score;
         if (scoreVal === undefined) continue;
         if (!catMap.has(cat)) catMap.set(cat, []);
         catMap.get(cat)!.push(scoreVal);
@@ -146,11 +146,10 @@ export default function DashboardPage() {
 
       const profileSummaries: ProfileSummary[] = (profilesData ?? []).map((p: { id: string; title: string; created_at: string }) => {
         const sessions = sessionsByProfile.get(p.id) ?? [];
-        const pAnswers = (answersByProfile.get(p.id) ?? []) as Array<{ score?: { overall_score?: number } | Array<{ overall_score?: number }> }>;
-        const scoredAnswers = pAnswers.filter(a => a.score);
-        const pScores = scoredAnswers.map(a =>
-          Array.isArray(a.score) ? a.score[0]?.overall_score : (a.score as { overall_score?: number })?.overall_score
-        ).filter((s): s is number => s !== undefined);
+        const pAnswers = (answersByProfile.get(p.id) ?? []) as Array<{ score?: unknown }>;
+        const pScores = pAnswers
+          .map(a => normalizeScore(a.score as Parameters<typeof normalizeScore>[0])?.overall_score)
+          .filter((s): s is number => s !== undefined);
 
         return {
           id: p.id,
